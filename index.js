@@ -100,7 +100,7 @@ async function run() {
             const filter = { email: email }
             const result = await orderCollection.find(filter).toArray()
             console.log(email, result);
-            // res.send(result)
+            res.send(result)
             // if (email === decodedEmail) {
             //     const filter = { email: email }
             //     const result = await orderCollection.find(filter).toArray()
