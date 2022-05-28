@@ -66,7 +66,7 @@ async function run() {
             const result = await orderCollection.find().toArray()
             res.send(result)
         })
-        app.get("/orders/:id", async (req, res) => {
+        app.get("/order/:id", async (req, res) => {
             const id = req.params.id
             const filter = { _id: ObjectId(id) }
             const result = await orderCollection.findOne(filter)
@@ -82,17 +82,21 @@ async function run() {
             const result = await orderCollection.updateOne(filter, updatedDoc)
             res.send(result)
         })
-        app.get("/orders/?email=", async (req, res) => {
-            const email = req.query.email
-            const decodedEmail = decoded.email
-            if (email === decodedEmail) {
-                const filter = { email: email }
-                const result = await orderCollection.find(filter).toArray()
-                res.send(result)
-            }
-            else {
-                res.status(403).send({ message: 'forbidden' })
-            }
+        app.get("/orders/:email", async (req, res) => {
+            const email = req.params.email
+            // const decodedEmail = decoded.email
+            const filter = { email: email }
+            const result = await orderCollection.find(filter).toArray()
+            console.log(email, result);
+            // res.send(result)
+            // if (email === decodedEmail) {
+            //     const filter = { email: email }
+            //     const result = await orderCollection.find(filter).toArray()
+            //     res.send(result)
+            // }
+            // else {
+            //     res.status(403).send({ message: 'forbidden' })
+            // }
         })
 
         // Review Routes
