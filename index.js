@@ -123,10 +123,11 @@ async function run() {
             const token = jwt.sign({ email: email }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' })
             res.send({ result, token })
         })
-        app.put("/user/:id", async (req, res) => {
-            const user = req.body
-            const result = await userCollection.insertOne(user)
-            res.send(result)
+        app.get("/user/:email", async (req, res) => {
+            const email = req.params.email
+            const filter = { email: email }
+            const user = await userCollection.findOne(filter)
+            res.send(user)
         })
         // Admin Routes
         app.put('/user/admin/:email', async (req, res) => {
