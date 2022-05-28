@@ -4,6 +4,7 @@ require("dotenv").config()
 const cors = require('cors');
 const port = process.env.PORT || 5000
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
+const jwt = require("jsonwebtoken");
 
 
 
@@ -23,9 +24,10 @@ app.get('/', async (req, res) => {
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.ok9qa4o.mongodb.net/?retryWrites=true&w=majority`;
 const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true, serverApi: ServerApiVersion.v1 });
 
-function run() {
+async function run() {
 
     try {
+        await client.connect()
         const partsCollection = client.db("p-hero-assignment-12").collection("parts")
         const orderCollection = client.db("p-hero-assignment-12").collection("orders")
         const reviewCollection = client.db("p-hero-assignment-12").collection("reviews")
@@ -34,7 +36,7 @@ function run() {
 
         // Parts Routes
         app.get("/parts", async (req, res) => {
-            const parts = await partsCollection.find({}).toArray()
+            const parts = await partsCollection.find().toArray()
             res.send(parts)
         })
         app.post("/parts", async (req, res) => {
@@ -61,7 +63,7 @@ function run() {
 
         // Orders Routes
         app.get("/orders", async (req, res) => {
-            const result = await orderCollection.find({}).toArray()
+            const result = await orderCollection.find().toArray()
             res.send(result)
         })
         app.get("/orders/:id", async (req, res) => {
@@ -95,7 +97,7 @@ function run() {
 
         // Review Routes
         app.get("/reviews", async (req, res) => {
-            const result = await reviewCollection.find({}).toArray()
+            const result = await reviewCollection.find().toArray()
             res.send(result)
         })
         app.post("/review", async (req, res) => {
@@ -106,18 +108,41 @@ function run() {
 
         // Users Routes
         app.get("/user", async (req, res) => {
-            const result = await userCollection.find({}).toArray()
+            const result = await userCollection.find().toArray()
             res.send(result)
         })
-        app.post("/user", async (req, res) => {
+        app.put("/user/:email", async (req, res) => {
+            const email = req.params.email
             const user = req.body
-            const result = await userCollection.insertOne(user)
-            res.send(result)
+            const filter = { emall: email }
+            const options = { upsert: true }
+            const updateDoc = {
+                $set: user
+            }
+            const result = await userCollection.updateOne(filter, updateDoc, options)
+            const token = jwt.sign({ email: email }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' })
+            res.send({ result, token })
         })
         app.put("/user/:id", async (req, res) => {
             const user = req.body
             const result = await userCollection.insertOne(user)
             res.send(result)
+        })
+        // Admin Routes
+        app.put('/user/admin/:email', async (req, res) => {
+            const email = req.params.email
+            const filter = { email: email }
+            const updateDoc = {
+                $set: { role: 'admin' }
+            }
+            const result = await userCollection.updateOne(filter, updateDoc)
+            res.send(result)
+        })
+        app.get('/admin/:email', async (req, res) => {
+            const email = req.params.email
+            const user = await userCollection.findOne({ email: email })
+            const isAdmin = user.role === 'admin'
+            res.send({ admin: isAdmin })
         })
 
         // Payment Routes
