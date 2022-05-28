@@ -72,6 +72,11 @@ async function run() {
             const result = await orderCollection.find().toArray()
             res.send(result)
         })
+        app.post("/order", async (req, res) => {
+            const order = req.body
+            const result = await orderCollection.insertOne(order)
+            res.send(result)
+        })
         app.get("/order/:id", async (req, res) => {
             const id = req.params.id
             const filter = { _id: ObjectId(id) }
