@@ -111,7 +111,7 @@ async function run() {
         })
 
         // Users Routes
-        app.get("/user", async (req, res) => {
+        app.get("/users", async (req, res) => {
             const result = await userCollection.find().toArray()
             res.send(result)
         })
@@ -135,13 +135,20 @@ async function run() {
         })
         // Admin Routes
         app.put('/user/admin/:email', async (req, res) => {
-            const email = req.params.email
-            const filter = { email: email }
-            const updateDoc = {
-                $set: { role: 'admin' }
+            const adminEmail = req.params.email
+            const admin = await userCollection.findOne({ email: adminEmail })
+            const isAdmin = admin.role === 'admin'
+
+            if (isAdmin) {
+                const email = req.body.email
+                const filter = { email: email }
+                const updateDoc = {
+                    $set: { role: 'admin' }
+                }
+                const result = await userCollection.updateOne(filter, updateDoc)
+                res.send(result)
             }
-            const result = await userCollection.updateOne(filter, updateDoc)
-            res.send(result)
+
         })
         app.get('/admin/:email', async (req, res) => {
             const email = req.params.email
