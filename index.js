@@ -5,6 +5,7 @@ const cors = require('cors');
 const port = process.env.PORT || 5000
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const jwt = require("jsonwebtoken");
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY)
 
 
 
@@ -17,6 +18,27 @@ app.use(express.json())
 app.get('/', async (req, res) => {
     res.send("P-Hero Assignment 12 Server is Running")
 })
+
+
+
+
+
+function verifyJWT(req, res, next) {
+    const authHeader = req.headers.authorization
+    if (!authHeader) {
+        return res.status(401).send({ message: "UnAuthorized Access" })
+    }
+    const token = authHeader.split(' ')[1]
+    jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, function (err, decoded) {
+        if (err) {
+            return res.status(403).send({ message: "Forbidden Access" })
+        }
+        req.decoded = decoded
+        next()
+    })
+}
+
+
 
 
 
@@ -34,12 +56,26 @@ async function run() {
         const userCollection = client.db("p-hero-assignment-12").collection("users")
         const paymentCollection = client.db("p-hero-assignment-12").collection("payments")
 
+
+        const verifyAdmin = async (req, res, next) => {
+            const requester = req?.decoded?.email
+            const requesterAccount = await userCollection.findOne({ email: requester })
+
+            if (requesterAccount?.role === 'admin') {
+                next()
+            }
+            else {
+                res.status(403).send({ message: "Firbidden" })
+            }
+        }
+
+
         // Parts Routes
         app.get("/parts", async (req, res) => {
-            const parts = await partsCollection.find().toArray()
+            const parts = await partsCollection.find().sort({ _id: -1 }).toArray()
             res.send(parts)
         })
-        app.post("/parts", async (req, res) => {
+        app.post("/parts", verifyJWT, async (req, res) => {
             const parts = req.body
             const result = await partsCollection.insertOne(parts)
             res.send(result)
@@ -50,7 +86,7 @@ async function run() {
             const result = await partsCollection.findOne(filter)
             res.send(result)
         })
-        app.patch("/parts/:id", async (req, res) => {
+        app.patch("/parts/:id", verifyJWT, async (req, res) => {
             const parts = req.body
             const id = req.params.id
             const filter = { _id: ObjectId(id) }
@@ -60,7 +96,7 @@ async function run() {
             const result = await partsCollection.updateOne(filter, updatedDoc)
             res.send(result)
         })
-        app.delete("/parts/:id", async (req, res) => {
+        app.delete("/parts/:id", verifyJWT, async (req, res) => {
             const id = req.params.id
             const query = { _id: ObjectId(id) }
             const result = await partsCollection.deleteOne(query)
@@ -68,67 +104,65 @@ async function run() {
         })
 
         // Orders Routes
-        app.get("/orders", async (req, res) => {
+        app.get("/orders", verifyJWT, verifyAdmin, async (req, res) => {
             const result = await orderCollection.find().toArray()
             res.send(result)
         })
-        app.post("/order", async (req, res) => {
+        app.post("/order", verifyJWT, async (req, res) => {
             const order = req.body
             const result = await orderCollection.insertOne(order)
             res.send(result)
         })
-        app.get("/order/:id", async (req, res) => {
+        app.get("/order/:id", verifyJWT, async (req, res) => {
             const id = req.params.id
             const filter = { _id: ObjectId(id) }
             const result = await orderCollection.findOne(filter)
             res.send(result)
         })
-        app.patch("/orders/:id", async (req, res) => {
+        app.put("/orders/:id", verifyJWT, async (req, res) => {
             const id = req.params.id
             const order = req.body
             const filter = { _id: ObjectId(id) }
+            const options = { upsert: true }
             const updatedDoc = {
                 $set: order
             }
-            const result = await orderCollection.updateOne(filter, updatedDoc)
+            const result = await orderCollection.updateOne(filter, updatedDoc, options)
             res.send(result)
         })
-        app.delete("/order/:id", async (req, res) => {
+        app.delete("/order/:id", verifyJWT, async (req, res) => {
             const id = req.params.id
             const query = { _id: ObjectId(id) }
             const result = await orderCollection.deleteOne(query)
             res.send(result)
         })
-        app.get("/orders/:email", async (req, res) => {
+        app.get("/orders/:email", verifyJWT, async (req, res) => {
             const email = req.params.email
-            // const decodedEmail = decoded.email
-            const filter = { email: email }
-            const result = await orderCollection.find(filter).toArray()
-            console.log(email, result);
-            res.send(result)
-            // if (email === decodedEmail) {
-            //     const filter = { email: email }
-            //     const result = await orderCollection.find(filter).toArray()
-            //     res.send(result)
-            // }
-            // else {
-            //     res.status(403).send({ message: 'forbidden' })
-            // }
+            const decodedEmail = req.decoded.email
+            if (email == decodedEmail) {
+                const filter = { email: email }
+                const result = await orderCollection.find(filter).toArray()
+                res.send(result)
+            }
+            else {
+                res.status(403).send({ message: 'forbidden' })
+            }
         })
 
         // Review Routes
         app.get("/reviews", async (req, res) => {
-            const result = await reviewCollection.find().toArray()
+            const result = await reviewCollection.find().sort({ _id: -1 }).toArray()
+            console.log(result);
             res.send(result)
         })
-        app.post("/review", async (req, res) => {
+        app.post("/review", verifyJWT, async (req, res) => {
             const review = req.body
             const result = await reviewCollection.insertOne(review)
             res.send(result)
         })
 
         // Users Routes
-        app.get("/users", async (req, res) => {
+        app.get("/users", verifyJWT, verifyAdmin, async (req, res) => {
             const result = await userCollection.find().toArray()
             res.send(result)
         })
@@ -144,14 +178,22 @@ async function run() {
             const token = jwt.sign({ email: email }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' })
             res.send({ result, token })
         })
-        app.get("/user/:email", async (req, res) => {
+        app.get("/user/:email", verifyJWT, async (req, res) => {
             const email = req.params.email
             const filter = { email: email }
             const user = await userCollection.findOne(filter)
             res.send(user)
         })
+        app.get('/notAdmin/:email', verifyJWT, async (req, res) => {
+            const email = req.params.email
+            const user = await userCollection.findOne({ email: email })
+            const isUser = !user?.role
+            console.log(isUser);
+            res.send({ user: isUser })
+        })
+
         // Admin Routes
-        app.put('/user/admin/:email', async (req, res) => {
+        app.put('/user/admin/:email', verifyJWT, async (req, res) => {
             const adminEmail = req.params.email
             const admin = await userCollection.findOne({ email: adminEmail })
             const isAdmin = admin.role === 'admin'
@@ -167,10 +209,11 @@ async function run() {
             }
 
         })
-        app.get('/admin/:email', async (req, res) => {
+        app.get('/admin/:email', verifyJWT, async (req, res) => {
             const email = req.params.email
             const user = await userCollection.findOne({ email: email })
-            const isAdmin = user.role === 'admin'
+            const isAdmin = user?.role === 'admin'
+            console.log(isAdmin);
             res.send({ admin: isAdmin })
         })
 
@@ -180,6 +223,20 @@ async function run() {
             const result = await paymentCollection.insertOne(payment)
             res.send(result)
         })
+        app.post("/create-payment-intent", verifyJWT, async (req, res) => {
+            const service = req.body
+            const price = service.totalPrice
+            const amount = price * 100
+            if (price && amount) {
+                const paymentIntent = await stripe.paymentIntents.create({
+                    amount: amount,
+                    currency: 'usd',
+                    payment_method_types: ['card']
+                })
+                res.send({ clientSecret: paymentIntent.client_secret })
+            }
+        })
+
     }
     finally {
 
