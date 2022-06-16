@@ -5,8 +5,8 @@
 ---
 
 
-###  ** *[Client Side Code Link](https://github.com/programming-hero-web-course1/manufacturer-website-client-side-MajedHasan)* **
-###  ** *[Server Side Code Link](https://github.com/programming-hero-web-course1/manufacturer-website-server-side-MajedHasan)* ** 
+###  ** *[Client Side Code Link](https://github.com/MajedHasan/laptop-parts-360-degree-website.git)* **
+###  ** *[Server Side Code Link](https://github.com/MajedHasan/laptop-parts-360-degree-website-server-side.git)* ** 
 ###  ** *[Live Site Link](https://p-hero-assignment-12.web.app/)* ** 
 
 
